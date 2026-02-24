@@ -2,6 +2,9 @@ import { Fragment, useState } from "react";
 import styled from "@emotion/styled";
 import { BasicEmptyState } from "@leafygreen-ui/empty-state";
 import Cookie from "js-cookie";
+import { useChatContext } from "@evg-ui/fungi";
+import { CharKey } from "@evg-ui/lib/constants/keys";
+import { useKeyboardShortcut } from "@evg-ui/lib/hooks";
 import { useAdminBetaFeatures } from "@evg-ui/lib/hooks/useBetaFeatures";
 import BookmarksBar from "components/BookmarksBar";
 import { Chatbot } from "components/Chatbot";
@@ -11,6 +14,7 @@ import SidePanel from "components/SidePanel";
 import SubHeader from "components/SubHeader";
 import { DRAWER_OPENED } from "constants/cookies";
 import { useLogContext } from "context/LogContext";
+import { useIsParsleyAIAvailable } from "hooks";
 
 const LogWindow: React.FC = () => {
   const {
@@ -31,7 +35,22 @@ const LogWindow: React.FC = () => {
   );
 
   const { adminBetaSettings } = useAdminBetaFeatures();
+  // IMPORTANT: This condition affects Parsley AI hotkey availability (useIsParsleyAIAvailable)
   const ChatWrapper = adminBetaSettings?.parsleyAIEnabled ? Chatbot : Fragment;
+
+  const { drawerOpen, setDrawerOpen } = useChatContext();
+  const isParsleyAIAvailable = useIsParsleyAIAvailable();
+
+  useKeyboardShortcut(
+    { charKey: CharKey.BracketRight },
+    () => {
+      if (!drawerOpen) {
+        setSidePanelCollapsed(true);
+      }
+      setDrawerOpen((o) => !o);
+    },
+    { disabled: !isParsleyAIAvailable, ignoreFocus: true },
+  );
 
   return (
     <Container data-cy="log-window">

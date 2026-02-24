@@ -23,6 +23,7 @@ export const ToggleChatbotButton: React.FC<Props> = ({
       <Button
         leftGlyph={<Icon glyph="Sparkle" />}
         onClick={() => {
+          // IMPORTANT: This condition affects Parsley AI hotkey availability (useIsParsleyAIAvailable)
           if (userBetaSettings.parsleyAIEnabled) {
             if (!drawerOpen) {
               setSidePanelCollapsed(true);

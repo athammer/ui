@@ -54,6 +54,7 @@ const SubHeader: React.FC<SubHeaderProps> = ({ setSidePanelCollapsed }) => {
             )}
             <SectionControls />
           </Header>
+          {/* IMPORTANT: This condition affects Parsley AI hotkey availability (useIsParsleyAIAvailable) */}
           <ToggleChatbotButton setSidePanelCollapsed={setSidePanelCollapsed} />
         </>
       )}
