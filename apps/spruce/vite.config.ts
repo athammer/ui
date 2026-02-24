@@ -5,6 +5,7 @@ import { visualizer } from "rollup-plugin-visualizer";
 import { defineConfig, mergeConfig } from "vite";
 import { checker } from "vite-plugin-checker";
 import envCompatible from "vite-plugin-env-compatible";
+import { viteStaticCopy } from "vite-plugin-static-copy";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { defineConfig as defineTestConfig } from "vitest/config";
 import dns from "dns";
@@ -32,6 +33,8 @@ const getProjectConfig = () => {
   // https://vitejs.dev/config/
   const viteConfig = defineConfig({
     server: serverConfig,
+    // Use shared public directory from lib package to avoid font duplication
+    publicDir: "../../packages/lib/public",
     optimizeDeps: {
       esbuildOptions: {
         // Node.js global to browser globalThis
@@ -70,6 +73,15 @@ const getProjectConfig = () => {
     },
     plugins: [
       tsconfigPaths(),
+      // Copy app-specific public files (favicon, robots.txt) alongside shared fonts
+      viteStaticCopy({
+        targets: [
+          {
+            src: "public/*",
+            dest: ".",
+          },
+        ],
+      }),
       // Inject env variables
       envCompatible({
         prefix: "REACT_APP_",
