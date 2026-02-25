@@ -131,7 +131,7 @@ describe("sharingMenu", () => {
     expect(screen.getByText("Copy selected contents")).toBeInTheDocument();
     await user.click(screen.getByText("Copy selected contents"));
     const clipboardText = await navigator.clipboard.readText();
-    expect(clipboardText).toBe("line 2\nline 3\nline 4");
+    expect(clipboardText).toBe("line 2\nline 3\nline 4\n");
   });
   it("clicking `copy selected contents` should copy a single selected line to the clipboard in raw format when cookie is set to raw", async () => {
     const user = userEvent.setup({ writeToClipboard: true });
@@ -146,7 +146,7 @@ describe("sharingMenu", () => {
     expect(screen.getByText("Copy selected contents")).toBeInTheDocument();
     await user.click(screen.getByText("Copy selected contents"));
     const clipboardText = await navigator.clipboard.readText();
-    expect(clipboardText).toBe("line 2");
+    expect(clipboardText).toBe("line 2\n");
   });
   it("clicking `share link to selected lines` should copy the link to the clipboard", async () => {
     const user = userEvent.setup({ writeToClipboard: true });
