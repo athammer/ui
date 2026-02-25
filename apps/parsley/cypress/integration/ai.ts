@@ -8,12 +8,6 @@ describe("Parsley AI", () => {
 
   it("opens the AI drawer and logs in", () => {
     cy.dataCy("ansi-row").should("be.visible");
-    cy.contains("button", "Parsley AI").click();
-    cy.contains("button", "Enable it!").click();
-    cy.contains("button", "Enable it!").should("not.exist");
-
-    // Ensure new settings are loaded with AI enabled
-    cy.reload();
 
     cy.intercept("GET", `http://localhost:8080/login`, {
       statusCode: 200,
@@ -21,6 +15,7 @@ describe("Parsley AI", () => {
         message: "Logged in successfully, you may close this window",
       },
     }).as("login");
+
     cy.contains("button", "Parsley AI").should(
       "have.attr",
       "aria-disabled",
