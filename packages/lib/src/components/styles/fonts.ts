@@ -1,9 +1,6 @@
 import { css } from "@emotion/react";
 
 export const fontStyles = css`
-  /* Import Source Code Pro from Google Fonts - might be redudant due to index.html loading in the font */
-  @import url("https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,400;0,600;1,400&display=swap");
-
   /*
    * Euclid
   /*
