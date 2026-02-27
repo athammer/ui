@@ -49,13 +49,11 @@ const ToastProviderCore: React.FC<{ children: ReactNode }> = ({ children }) => {
       title,
       variant,
     }: ToastParams) => {
-      let toastTimeout: number | null;
+      let toastTimeout = null;
       if (timeout !== undefined) {
         toastTimeout = timeout;
       } else if (shouldTimeout) {
         toastTimeout = TOAST_TIMEOUT;
-      } else {
-        toastTimeout = null;
       }
 
       return pushToast({
