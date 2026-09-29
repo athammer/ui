@@ -6,9 +6,8 @@ import {
   ViewedRestartNotificationPromptAction,
   subscriptionMethods,
 } from "types/subscription";
-import { NotificationModalProps } from "..";
 import { useNotificationModal } from "../NotificationModalContext";
-import { getCreatedNotificationEvent, getResourceTriggers } from "../utils";
+import { getResourceTriggers } from "../utils";
 import { RestartToastMessage, RestartToastMessageProps } from ".";
 
 type RestartToastAction =
@@ -40,17 +39,15 @@ export const useRestartSuccessToast = ({
   const dispatchToast = useToastContext();
   const { openNotificationModal } = useNotificationModal();
 
-  const onSubscribe: NotificationModalProps["sendAnalyticsEvent"] = (
-    subscription,
-    details,
-  ) =>
-    sendEvent(
-      getCreatedNotificationEvent(
-        NotificationModalSource.RestartToast,
-        subscription,
-        details,
-      ),
-    );
+  const onSubscribe: RestartToastMessageProps["onSubscribe"] = (subscription) =>
+    sendEvent({
+      name: "Created notification",
+      "notification.source": NotificationModalSource.RestartToast,
+      "slack_username.saved": false,
+      "subscription.changed_initial_selection": false,
+      "subscription.type": subscription.subscriber.type || "",
+      "subscription.trigger": subscription.trigger || "",
+    });
 
   return (message: string) => {
     sendEvent({ name: "Viewed restart notification prompt" });
@@ -67,15 +64,14 @@ export const useRestartSuccessToast = ({
             "data-testid": "restart-notification-modal",
             ignoreSavedSelections: true,
             resourceId,
-            sendAnalyticsEvent: onSubscribe,
+            sendEvent,
+            source: NotificationModalSource.RestartToast,
             subscriptionMethods,
             triggers: getResourceTriggers(type),
             type,
           });
         }}
-        onSubscribe={(subscription) =>
-          onSubscribe(subscription, { changedInitialSelection: false })
-        }
+        onSubscribe={onSubscribe}
         resourceId={resourceId}
         type={type}
       />,

@@ -1,10 +1,9 @@
 import { forwardRef, useState } from "react";
-import { useQuery } from "@apollo/client/react";
+import { useMutation, useQuery } from "@apollo/client/react";
 import { Button, ButtonProps } from "@leafygreen-ui/button";
+import { Checkbox } from "@leafygreen-ui/checkbox";
 import { ConfirmationModal } from "@leafygreen-ui/confirmation-modal";
-import { Disclaimer } from "@leafygreen-ui/typography";
 import Cookies from "js-cookie";
-import { StyledRouterLink } from "@evg-ui/lib/components/styles";
 import { useToastContext } from "@evg-ui/lib/context/toast";
 import { cx } from "@evg-ui/lib/utils/css";
 import { SpruceForm } from "components/SpruceForm";
@@ -12,23 +11,27 @@ import {
   SUBSCRIPTION_METHOD,
   getNotificationTriggerCookie,
 } from "constants/cookies";
-import { getSlackUsernamePreferencesRoute } from "constants/routes";
 import { regexBuildVariant, regexDisplayName } from "constants/triggers";
 import {
+  SaveSubscriptionForUserMutation,
   SaveSubscriptionForUserMutationVariables,
+  UpdateUserSettingsMutation,
+  UpdateUserSettingsMutationVariables,
   UserQuery,
 } from "gql/generated/types";
+import { SAVE_SUBSCRIPTION, UPDATE_USER_SETTINGS } from "gql/mutations";
 import { USER } from "gql/queries";
 import { useUserSettings } from "hooks/useUserSettings";
 import {
+  CreatedNotificationAction,
   NotificationMethods,
+  NotificationModalSource,
   SubscriptionMethodOption,
 } from "types/subscription";
 import { Trigger } from "types/triggers";
 import { getFormSchema } from "./form/getFormSchema";
 import styles from "./index.module.css";
 import { FormRegexSelector, FormState } from "./types";
-import { useSaveSubscription } from "./useSaveSubscription";
 import {
   getDefaultEvent,
   getDefaultNotificationMethod,
@@ -42,45 +45,86 @@ export interface NotificationModalProps {
   ignoreSavedSelections?: boolean;
   onCancel: (e?: React.MouseEvent<HTMLElement, MouseEvent>) => void;
   resourceId: string;
-  sendAnalyticsEvent: (
-    subscription: SaveSubscriptionForUserMutationVariables["subscription"],
-    details: { changedInitialSelection: boolean },
-  ) => void;
+  sendEvent: (event: CreatedNotificationAction) => void;
+  source: NotificationModalSource;
   subscriptionMethods: SubscriptionMethodOption[];
   triggers: Trigger;
   type: "task" | "version" | "project";
   visible: boolean;
 }
 
+/**
+ * NotificationModal lets the user subscribe to a resource. The form only mounts while the modal is open and the user's
+ * details have loaded, so each open starts fresh from the latest saved selections and user settings.
+ * @param props - NotificationModalProps
+ * @param props.visible - whether the modal is open
+ * @returns the notification modal, or nothing while closed or loading
+ */
 export const NotificationModal: React.FC<NotificationModalProps> = ({
+  visible,
+  ...props
+}) => {
+  const { loading: userSettingsLoading, userSettings } = useUserSettings();
+  const { data: userData, loading: userLoading } = useQuery<UserQuery>(USER);
+
+  if (!visible || userSettingsLoading || userLoading) {
+    return null;
+  }
+  return (
+    <NotificationModalForm
+      {...props}
+      emailAddress={userData?.user?.emailAddress ?? ""}
+      slackUsername={userSettings.slackUsername ?? ""}
+    />
+  );
+};
+
+interface NotificationModalFormProps extends Omit<
+  NotificationModalProps,
+  "visible"
+> {
+  emailAddress: string;
+  slackUsername: string;
+}
+
+const NotificationModalForm: React.FC<NotificationModalFormProps> = ({
   "data-testid": dataTestId,
+  emailAddress,
   ignoreSavedSelections = false,
   onCancel,
   resourceId,
-  sendAnalyticsEvent,
+  sendEvent,
+  slackUsername,
+  source,
   subscriptionMethods,
   triggers,
   type,
-  visible,
 }) => {
   const dispatchToast = useToastContext();
-  const [saveSubscription] = useSaveSubscription({
+  const [saveSubscription] = useMutation<
+    SaveSubscriptionForUserMutation,
+    SaveSubscriptionForUserMutationVariables
+  >(SAVE_SUBSCRIPTION, {
     onCompleted: () => {
       dispatchToast.success("Your subscription has been added");
     },
-    onError: (message) => {
-      dispatchToast.error(message);
+    onError: (err) => {
+      dispatchToast.error(`Error adding your subscription: '${err.message}'`);
     },
   });
 
-  // Fetch user Slack and email information.
-  const { userSettings } = useUserSettings();
-  const { slackUsername } = userSettings || {};
-  const { data: userData } = useQuery<UserQuery>(USER);
-  const { user } = userData || {};
-  const { emailAddress } = user || {};
+  const [updateUserSettings] = useMutation<
+    UpdateUserSettingsMutation,
+    UpdateUserSettingsMutationVariables
+  >(UPDATE_USER_SETTINGS, {
+    // The mutation only returns a boolean, so the cached settings must be refetched to prefill the next modal.
+    refetchQueries: ["UserSettings"],
+    onError: (err) => {
+      dispatchToast.error(`Error saving your Slack username: '${err.message}'`);
+    },
+  });
 
-  const getInitialFormState = (): FormState => ({
+  const [initialFormState] = useState<FormState>(() => ({
     event: {
       eventSelect:
         (!ignoreSavedSelections &&
@@ -95,26 +139,18 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
         getDefaultNotificationMethod(subscriptionMethods),
       jiraCommentInput: "",
       slackInput: slackUsername ? `@${slackUsername}` : "",
-      emailInput: emailAddress ?? "",
+      emailInput: emailAddress,
     },
-  });
+  }));
+  const [formState, setFormState] = useState(initialFormState);
+  const [hasError, setHasError] = useState(hasInitialError(initialFormState));
+  const [shouldSaveSlackUsername, setShouldSaveSlackUsername] = useState(false);
 
-  const [initialFormState, setInitialFormState] = useState(getInitialFormState);
-  const [formState, setFormState] = useState<FormState>(initialFormState);
-  const [hasError, setHasError] = useState(hasInitialError(formState));
-
-  // Rebuild the form each time the modal opens so it reflects the latest cookies
-  // and user settings, which may not have loaded when the modal first mounted.
-  const [wasVisible, setWasVisible] = useState(visible);
-  if (visible !== wasVisible) {
-    setWasVisible(visible);
-    if (visible) {
-      const nextFormState = getInitialFormState();
-      setInitialFormState(nextFormState);
-      setFormState(nextFormState);
-      setHasError(hasInitialError(nextFormState));
-    }
-  }
+  const typedSlackUsername =
+    formState.notification.notificationSelect === NotificationMethods.SLACK
+      ? getSlackUsername(formState.notification.slackInput)
+      : "";
+  const canSaveSlackUsername = !slackUsername && !!typedSlackUsername;
 
   const onClickSave = () => {
     const subscription = getGqlPayload(type, triggers, resourceId, formState);
@@ -131,20 +167,25 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
     saveSubscription({
       variables: { subscription },
     });
-    sendAnalyticsEvent(subscription, {
-      changedInitialSelection:
+    const savedSlackUsername = canSaveSlackUsername && shouldSaveSlackUsername;
+    if (savedSlackUsername) {
+      updateUserSettings({
+        variables: { userSettings: { slackUsername: typedSlackUsername } },
+      });
+    }
+    sendEvent({
+      name: "Created notification",
+      "notification.source": source,
+      "slack_username.saved": savedSlackUsername,
+      "subscription.changed_initial_selection":
         formState.event.eventSelect !== initialFormState.event.eventSelect ||
         formState.notification.notificationSelect !==
           initialFormState.notification.notificationSelect,
+      "subscription.type": subscription.subscriber.type || "",
+      "subscription.trigger": subscription.trigger || "",
     });
     onCancel();
   };
-
-  const typedSlackUsername =
-    formState.notification.notificationSelect === NotificationMethods.SLACK
-      ? getSlackUsername(formState.notification.slackInput)
-      : "";
-  const showSaveSlackUsernameHint = !slackUsername && !!typedSlackUsername;
 
   const { schema, uiSchema } = getFormSchema(
     getRegexEnumsToDisable(formState.event.regexSelector),
@@ -163,7 +204,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
         onClick: onClickSave,
       }}
       data-testid={dataTestId}
-      open={visible}
+      open
       title="Add Subscription"
     >
       <SpruceForm
@@ -175,19 +216,14 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
         schema={schema}
         uiSchema={uiSchema}
       />
-      {showSaveSlackUsernameHint && (
-        <Disclaimer
-          className={styles.slackUsernameHint}
-          data-testid="save-slack-username-hint"
-        >
-          <StyledRouterLink
-            target="_blank"
-            to={getSlackUsernamePreferencesRoute(typedSlackUsername)}
-          >
-            Save this username
-          </StyledRouterLink>{" "}
-          in your preferences to prefill it next time.
-        </Disclaimer>
+      {canSaveSlackUsername && (
+        <Checkbox
+          checked={shouldSaveSlackUsername}
+          className={styles.saveSlackUsernameCheckbox}
+          data-testid="save-slack-username-checkbox"
+          label="Save Slack username to my settings"
+          onChange={(e) => setShouldSaveSlackUsername(e.target.checked)}
+        />
       )}
     </ConfirmationModal>
   );

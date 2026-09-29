@@ -1,13 +1,8 @@
 import { StringMap } from "@evg-ui/lib/types/utils";
 import { taskTriggers, versionTriggers } from "constants/triggers";
+import { SubscriptionInput } from "gql/generated/types";
 import {
-  SaveSubscriptionForUserMutationVariables,
-  SubscriptionInput,
-} from "gql/generated/types";
-import {
-  CreatedNotificationAction,
   NotificationMethods,
-  NotificationModalSource,
   SubscriptionMethodOption,
 } from "types/subscription";
 import { ExtraField, Trigger, TriggerType } from "types/triggers";
@@ -159,26 +154,6 @@ export const getDefaultNotificationMethod = (
  */
 export const getResourceTriggers = (type: "task" | "version") =>
   type === "task" ? taskTriggers : versionTriggers;
-
-/**
- * getCreatedNotificationEvent builds the analytics event sent when a user creates a subscription.
- * @param source - where the user created the subscription from
- * @param subscription - the subscription that was saved
- * @param details - details about how the subscription was created
- * @param details.changedInitialSelection - whether the user changed the preselected event or method
- * @returns the analytics event
- */
-export const getCreatedNotificationEvent = (
-  source: NotificationModalSource,
-  subscription: SaveSubscriptionForUserMutationVariables["subscription"],
-  { changedInitialSelection }: { changedInitialSelection: boolean },
-): CreatedNotificationAction => ({
-  name: "Created notification",
-  "notification.source": source,
-  "subscription.changed_initial_selection": changedInitialSelection,
-  "subscription.type": subscription.subscriber.type || "",
-  "subscription.trigger": subscription.trigger || "",
-});
 
 /**
  * getSlackOnOutcomeSubscription builds a subscription that Slacks the user when the resource finishes.
