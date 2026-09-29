@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLazyQuery, useMutation } from "@apollo/client/react";
+import { Button } from "@via-ds/components/button";
 import {
   SaveSubscriptionForUserMutation,
   SaveSubscriptionForUserMutationVariables,
@@ -9,13 +10,10 @@ import {
 import { SAVE_SUBSCRIPTION } from "gql/mutations";
 import { USER_SETTINGS } from "gql/queries";
 import { getSlackOnOutcomeSubscription } from "../utils";
-import styles from "./index.module.css";
 
 type Subscription = SaveSubscriptionForUserMutationVariables["subscription"];
 
 export interface RestartToastMessageProps {
-  message: string;
-  // Toast content renders outside the toast context, so errors are reported through the dispatcher's context.
   onError: (message: string) => void;
   onOpenModal: () => void;
   onSubscribe: (subscription: Subscription) => void;
@@ -25,7 +23,6 @@ export interface RestartToastMessageProps {
 
 // Owns the subscription itself because the component that dispatched the toast may unmount after the restart.
 export const RestartToastMessage: React.FC<RestartToastMessageProps> = ({
-  message,
   onError,
   onOpenModal,
   onSubscribe,
@@ -65,22 +62,16 @@ export const RestartToastMessage: React.FC<RestartToastMessageProps> = ({
     onSubscribe(subscription);
   };
 
-  return (
-    <span>
-      {message}{" "}
-      {isSubscribed ? (
-        "Subscribed."
-      ) : (
-        <button
-          className={styles.notifyButton}
-          data-testid="restart-toast-notify-button"
-          disabled={userSettingsLoading || saveLoading}
-          onClick={onClick}
-          type="button"
-        >
-          Slack me on outcome
-        </button>
-      )}
-    </span>
+  return isSubscribed ? (
+    <span>✓ Slack notification added.</span>
+  ) : (
+    <Button
+      aria-description="You can also add a notification using Notify Me on the task or version page."
+      data-testid="restart-toast-notify-button"
+      isDisabled={userSettingsLoading || saveLoading}
+      onPress={onClick}
+    >
+      Slack when finished
+    </Button>
   );
 };

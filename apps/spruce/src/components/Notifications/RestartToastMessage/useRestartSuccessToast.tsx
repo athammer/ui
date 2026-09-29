@@ -1,4 +1,4 @@
-import { useToastContext } from "@evg-ui/lib/context/toast";
+import { toast } from "@via-ds/components/toast";
 import {
   CreatedNotificationAction,
   NotificationModalSource,
@@ -36,7 +36,6 @@ export const useRestartSuccessToast = ({
   sendEvent,
   type,
 }: UseRestartSuccessToastOptions) => {
-  const dispatchToast = useToastContext();
   const { openNotificationModal } = useNotificationModal();
 
   const onSubscribe: RestartToastMessageProps["onSubscribe"] = (subscription) =>
@@ -51,30 +50,33 @@ export const useRestartSuccessToast = ({
 
   return (message: string) => {
     sendEvent({ name: "Viewed restart notification prompt" });
-    dispatchToast.success(
-      <RestartToastMessage
-        message={message}
-        onError={(errorMessage) => dispatchToast.error(errorMessage)}
-        onOpenModal={() => {
-          sendEvent({
-            name: "Viewed notification modal",
-            "notification.source": NotificationModalSource.RestartToast,
-          });
-          openNotificationModal({
-            "data-testid": "restart-notification-modal",
-            ignoreSavedSelections: true,
-            resourceId,
-            sendEvent,
-            source: NotificationModalSource.RestartToast,
-            subscriptionMethods,
-            triggers: getResourceTriggers(type),
-            type,
-          });
-        }}
-        onSubscribe={onSubscribe}
-        resourceId={resourceId}
-        type={type}
-      />,
-    );
+    toast.success(message, {
+      actionElement: (
+        <RestartToastMessage
+          onError={(errorMessage) => toast.error(errorMessage)}
+          onOpenModal={() => {
+            sendEvent({
+              name: "Viewed notification modal",
+              "notification.source": NotificationModalSource.RestartToast,
+            });
+            openNotificationModal({
+              "data-testid": "restart-notification-modal",
+              ignoreSavedSelections: true,
+              resourceId,
+              sendEvent,
+              source: NotificationModalSource.RestartToast,
+              subscriptionMethods,
+              triggers: getResourceTriggers(type),
+              type,
+            });
+          }}
+          onSubscribe={onSubscribe}
+          resourceId={resourceId}
+          type={type}
+        />
+      ),
+      duration: 30_000,
+      isDismissible: true,
+    });
   };
 };
