@@ -127,16 +127,17 @@ const NotificationModalForm: React.FC<NotificationModalFormProps> = ({
   const [initialFormState] = useState<FormState>(() => ({
     event: {
       eventSelect:
-        (!ignoreSavedSelections &&
-          Cookies.get(getNotificationTriggerCookie(type))) ||
-        getDefaultEvent(triggers),
+        (!ignoreSavedSelections
+          ? Cookies.get(getNotificationTriggerCookie(type))
+          : undefined) ?? getDefaultEvent(triggers),
       extraFields: {},
       regexSelector: [],
     },
     notification: {
       notificationSelect:
-        (!ignoreSavedSelections && Cookies.get(SUBSCRIPTION_METHOD)) ||
-        getDefaultNotificationMethod(subscriptionMethods),
+        (!ignoreSavedSelections
+          ? Cookies.get(SUBSCRIPTION_METHOD)
+          : undefined) ?? getDefaultNotificationMethod(subscriptionMethods),
       jiraCommentInput: "",
       slackInput: slackUsername ? `@${slackUsername}` : "",
       emailInput: emailAddress,
